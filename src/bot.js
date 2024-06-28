@@ -11,6 +11,8 @@ const {
 } = require('@discord-player/extractor');
 const { joinVoiceChannel } = require('@discordjs/voice');
 
+const { FFmpeg } = require('@discord-player/ffmpeg');
+
 // Create a new client instance
 const client = new Client({
   intents: [
@@ -49,6 +51,11 @@ client.player = new Player(client, {
   leaveOnStop: true,
 });
 
+client.player.on('ffmpeg', FFmpeg);
+client.on('ready', () => {
+  console.log(`Logged in as ${client.user.tag}!`);
+});
+
 client.player.on('error', (queue, error) => {
   console.log(
     `[${queue.guild.name}] Error emitted from the queue: ${error.message}`
@@ -62,8 +69,8 @@ client.player.on('connectionError', (queue, error) => {
 });
 
 // Register extractors
-client.player.extractors.register(SoundCloudExtractor); // Register the SoundCloudExtractor
-client.player.extractors.register(SpotifyExtractor);
+// client.player.extractors.register(SoundCloudExtractor);
+// client.player.extractors.register(SpotifyExtractor);
 client.player.extractors.register(YouTubeExtractor);
 client.player.on('error', (queue, error) => {
   console.error(
@@ -74,6 +81,20 @@ client.player.on('connectionError', (queue, error) => {
   console.error(
     `[${queue.guild.name}] Error emitted from the connection: ${error.message}`
   );
+});
+
+client.player.on('error', (queue, error) => {
+  console.error(
+    `[${queue.guild.name}] Error emitted from the queue: ${error.message}`
+  );
+  // Notify the user and potentially skip to the next track
+});
+
+client.player.on('connectionError', (queue, error) => {
+  console.error(
+    `[${queue.guild.name}] Error emitted from the connection: ${error.message}`
+  );
+  // Attempt to reconnect or notify the user
 });
 
 // Handle events and commands

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { MessageEmbed } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 const { QueryType } = require('discord-player');
 
 module.exports = {
@@ -39,7 +39,7 @@ module.exports = {
             .setRequired(true)
         )
     ),
-  execute: async ({ client, interaction }) => {
+  execute: async (interaction, client) => {
     console.log('Executing play command...');
     console.log('Interaction:', interaction);
     console.log('Interaction Guild:', interaction.guild);
@@ -59,11 +59,11 @@ module.exports = {
         'You need to be in a Voice Channel to play a song.'
       );
 
-    const queue = await client.player.createQueue(interaction.guild);
+    let queue = await client.player.nodes.create(interaction.guild);
     if (!queue.connection)
-      await queue.connect(interaction.member.voice.channel);
+      queue = await queue.connect(interaction.member.voice.channel);
 
-    let embed = new MessageEmbed();
+    let embed = new EmbedBuilder();
 
     if (interaction.options.getSubcommand() === 'song') {
       let url = interaction.options.getString('url');
@@ -75,7 +75,7 @@ module.exports = {
       if (result.tracks.length === 0) return interaction.reply('No results');
       const song = result.tracks[0];
       await queue.addTrack(song);
-      embed
+      embed = embed
         .setDescription(
           `**[${song.title}](${song.url})** has been added to the Queue`
         )
@@ -92,7 +92,7 @@ module.exports = {
         return interaction.reply(`No playlists found with ${url}`);
       const playlist = result.playlist;
       await queue.addTracks(result.tracks);
-      embed
+      embed = embed
         .setDescription(
           `**${result.tracks.length} songs from [${playlist.title}](${playlist.url})** have been added to the Queue`
         )
@@ -107,7 +107,7 @@ module.exports = {
       if (result.tracks.length === 0) return interaction.reply('No results');
       const song = result.tracks[0];
       await queue.addTrack(song);
-      embed
+      embed = embed
         .setDescription(
           `**[${song.title}](${song.url})** has been added to the Queue`
         )
@@ -115,7 +115,21 @@ module.exports = {
         .setFooter({ text: `Duration: ${song.duration}` });
     }
 
-    if (!queue.playing) await queue.play();
     await interaction.reply({ embeds: [embed] });
+    if (!queue.isPlaying()) {
+      const firstTrack = queue.tracks.at(0); // Get the first track directly
+      if (!firstTrack) {
+        console.error('No tracks in the queue to play.');
+        return interaction.followUp(
+          'An error occurred while trying to play the song.'
+        );
+      }
+      await queue.node.play(firstTrack); // Play the first track
+      console.log(`Playing: ${firstTrack.title}`);
+    }
+  },
+  catch(error) {
+    console.error('Error in play command:', error); // Log the full error
+    interaction.followUp('An error occurred while trying to play the song.');
   },
 };
